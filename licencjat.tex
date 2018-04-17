@@ -28,7 +28,7 @@
 \autorii{Adrian Naruszko}{371233}
 \autoriii{Filip Plata}{371335}
 
-\title{????}
+\title{Modernizacja architektury autorskiego CMS firmy E-point}
 
 
 %\tytulang{An implementation of a difference blabalizer based on the theory of $\sigma$ -- $\rho$ phetors}
@@ -61,7 +61,7 @@
   }
 
 % miesiąc i~rok:
-\date{Luty 2018}
+\date{Kwiecień 2018}
 
 %Podać dziedzinę wg klasyfikacji Socrates-Erasmus:
 \dziedzina{ 
@@ -82,8 +82,7 @@
   }
 
 % Słowa kluczowe:
-\keywords{blabaliza różnicowa, fetory $\sigma$-$\rho$, fooizm,
-  blarbarucja, blaba, fetoryka, baleronik, ??TODO}
+\keywords{CMS, Java, ORM, rendering, modernizacja, Jooq, Gatling, Caffeine, cache}
 
 % Tu jest dobre miejsce na Twoje własne makra i~środowiska:
 \newtheorem{defi}{Definicja}[section]
@@ -97,10 +96,11 @@
 %tu idzie streszczenie na strone poczatkowa
 \begin{abstract}
   W~pracy przedstawiamy opis współpracy w firmą e-point.
-  Produktem rozwijanym przez tą firmę jest autorski
-  system CMS. Na chwilę obecną ma on architekturę monolitu.
+  Produktem nad którym pracowaliśmy, jest autorski
+  system CMS. W momencie rozpoczęcia współpracy miał on strukturę monolitu.
   Naszym zadaniem było napisanie mikroserwisów umożliwiających
-  dalszą modernizację i modularyzację tego produktu.
+  dalszą modernizację i modularyzację tego produktu. 
+  Ostatecznie zajmowaliśmy się komponentami odpowiadającymi za dostęp do bazy danych oraz rendering.
 \end{abstract}
 
 \tableofcontents
@@ -109,30 +109,73 @@
 
 \chapter*{Wprowadzenie}
 \addcontentsline{toc}{chapter}{Wprowadzenie}
+    
+Z biegiem lat technologia rozwija się coraz szybiej. Stwierdzenie to sprawdza się od wieków, ale jego implikacje stają się znacznie poważniejsze w miarę rozwoju cywilzacji. Powszechne wcześniej rozwiązania i reguły prędko stają się przestarzałe i wymagają renowacji, co często oznacza całkowitą zmianę podejścia czy redefinicję problemu.
 
-Początkowo mieliśmy zrealizować inny projekt - kategoryzację
-użytkowników na podstawie aktywności na stronach internetowych. Zdążyliśmy zaimplementować
-podstawową architekturę, a także skonfigurować narzędzia deweloperskie na AWS.
-Niestety, nastąpiła zmiana projektu wymuszona okolicznościami zewnętrznymi na
-realizację pierwszego etapu modernizacji produktu e-pointu na nowe
-technologie oraz architekturę.
+\vspace{1mm}
 
-Zajmowaliśmy się implementacją dwóch mikroserwisów:
+Nie inaczej jest w przypadku usług sieciowych, szczególnie żywej dziedziny w czasach powszechnego Internetu i postępującej globalizacji. Świadczy o tym chociażby mnogość frameworków i technik wykorzystywanych przy ich tworzeniu, nieustannie ewoluujących w miarę odkrywania wad w używanych wcześniej wersjach. Przed problemem modernizacji swojego systemu stanęła m.in. firma E-point, które to zadanie powierzyła w części naszemu zespołowi.
+
+\vspace{1mm}
+
+W szczególności, zajmowaliśmy się implementacją dwóch mikroserwisów:
 \begin{enumerate}
-\item Element integrujący między bazą danych aktualnego CMSa a nowym mechanizmem renderingu.
-	Jest to RESTowa aplikacja udostępniająca niektóre dane z bazy danych potrzebne modułowi renderingu.
-\item Nowy mechanizm renderujący strony wraz z rejestrami usług. Gdzie przez usługi rozumiane są
-	kroki/akcje wykonywane w trakcie tworzenia strony. Np. podmiana tagów, (??TODO). W docelowej architekturze
-	mają to być niezależne mikroserwisy.
+\item DataAPI - RESTowa aplikacja integrująca bazę danych aktualnego CMSa z nowym mechanizmem renderingu.
+\item Element odpowiedzialny za rendering serwisów internetowych i związana z nim architektura.
 \end{enumerate}
 
+\chapter{Zarys sytuacji i problemu}
 
-\chapter{Opis modernizacji architektury}
+\begin{center}
+\includegraphics[scale=0.62]{logo.JPG}
+\end{center}
 
+\section{Firma E-point}
 
-\section{Dotychczasowy monolit}
-Do tej pory jedna aplikacja(a.k.a. ACN) obsługiwała zapytania HTTP od momentu pojawienia się do końcowego serwowania strony WWW.
-Taka struktura powoduje skomplikowanie kodu, utrudnia wprowadzanie zmian a w przypadku awarii serwisu komplikuje lokalizację błędu.
+E-point to polskie przedsiębiorstwo zajmujące się tworzeniem oprogramowania, dostarczające systemy internetowe dla międzynarodowych korporacji oraz usługi w modelu SaaS (software as a service). Założone w 1996 roku, działa nieprzerwanie od ponad 20 lat, otrzymując za swoją działalność liczne nagrody i wyróżnienia od przedstawicieli branży technologicznej. Jej klientami są największe firmy polskie i zagraniczne, takie jak ING Bank Śląski, Bank BGŻ BNP Paribas czy Amway.
+
+Firma koncentruje się na następujących sektorach:
+\begin{itemize}
+\item systemy e-business – aplikacje mające na celu sprzedaż produktów i usług oraz zapewnienie obsługi klientów i partnerów przez internet; sklepy internetowe, bankowość elektroniczna, eCRM, systemy obsługi zamówień;
+\item  portale korporacyjne – systemy mające na celu udostępnianie informacji na zewnątrz i wewnątrz organizacji – serwisy WWW, portale wewnętrzne, extranety;
+\item aplikacje mobilne aplikacje i serwisy na smartfony i tablety;
+\item systemy e-wniosków – rozwiązania zorganizowane wokół zagadnienia zbierania i przetwarzania wniosków (formularzy elektronicznych);
+\item systemy mające na celu obsługę wybranych procesów biznesowych w organizacji – rejestry, wsparcie sprzedaży, operacyjne CRM, e-learning.
+\end{itemize}
+
+W czasie tylu lat istnienia E-point wypuścił na rynek wiele swoich własnych produktów, m.in. kreator stron mobilnych ActiveMobi, modeler baz danych Vertabelo czy OneWebSQL, pierwsze polskie narzędzie do mapowania obiektowo-relacyjnego – sposobu odwzrowoania obiektowej architektury systemu informatycznego na bazę danych o relacyjnym charakterze. Nasze zadanie związane były z wewnętrznym CMS, używanym do zarządzania danymi i renderowania odpowiednich treści w serwisach internetowych klientów firmy.
+
+\section{ACN}
+
+ACN - wewnętrzny CMS (Content Management System) - to jeden z największych produktów firmy. Odpowiada za cały proces utrzymywania, przygotowania i serwowania danych serwisom internetowym. W momencie otrzymania zapytania load balancer decyduje o przekierowaniu go do odpowiednio odciążonego serwera. Request trafia do ACN, który sprawdza uprawnienia dostępu, a po ich pomyślnej weryfikacji wyciąga dostępne komponenty z cache’u, a o informacje potrzebne pozostałym odpytuje bazę danych. W dalszej kolejności renderowane są niecache’owalne elementy strony oraz te nieobecne w danym momencie w cache’u. Po wygenerowaniu wszystkich potrzebnych komponentów strona jest serwowana użytkownikowi.
+
+\vspace{1mm}
+
+[ schemat ACN ]
+
+\section{Problemy obecnej architektury}
+Dotychczas ACN stanowił monolit. Jest to produkt tworzony od wielu lat, stale rozwijany i rosnący. W samej bazie danych część zmian podyktowana była indywidualnymi wymaganiami klientów, przez co stała się ona mało przejrzysta i trudna w utrzymaniu. Duża wielkość systemu sprawia, że jego modyfikacja jest uciążliwa – zachowanie spójności wszystkich usług przy nawet pozornie małych zmianach wymaga wielu godzin pracy nad kodem. Utrudniona jest także lokalizacja błędów w systemie, brak modułowości oznacza konieczność przeszukiwania znacznie większej ilości kodu w celu wykrycia usterki.
+
+\vspace{1mm}
+
+W związku z powyższym, firma postanowiła dostosować swój produkt do bardziej nowoczesnego podejścia do problemu. Tak pojawił się pomysł przynajmniej częściowego wydzielenia funkcjonalności ACN do osobnych mikroserwisów. Implementacja dwóch z nich, elementu łączącego aplikację z bazą danych oraz serwisu renderującego komponenty strony, została przydzielona naszemu zespołowi.
+
+\chapter{Koncepcja}
+	
+\section{Początek prac – inny projekt}
+
+Założenia naszego projektu nie były od początku jasne. Pierwotnie mieliśmy zająć się w zasadzie innym zadaniem – zaimplementowaniem personalizacji treści serwisów internetowych na podstawie aktywności ich użytkowników. Miało to pozwolić przede wszystkim na bardziej trafne wyświetlanie ofert i reklam. Po wstępnej konfiguracji dostępów i tunelowania zdążyliśmy stworzyć podstawową architekturę aplikacji i skonfigurować narzędzie deweloperskie na AWS, kiedy okazało się, że rozwój produktu zostaje wstrzymany ze względu na problemy z jego sprzedażą. Wtedy też wyklarowało się, że nasz projekt będzie w całości poświęcony modernizacji aktualnie funkcjonującego systemu.
+
+\section{Ostateczny projekt}
+	
+Rozwiązanie zaproponowane i wdrażane przez firmę ma opierać się na stylu programowania REST, tj. wykorzystującym predefiniowane bezstanowe operacje, co pozwala osiągać dużą wydajność, modułowość i niezawodność aplikacji. Docelowo pojawić mają się następujące mikroserwisy:
+\begin{itemize}
+\item frontend - przyjmowanie zapytań i serwowanie stron WWW;
+\item rendering - tworzenie stron na podstawie szablonów, wykorzystuje usługi udostępniane przy pomocy serwisu Registry;
+\item AC Data API - abstrakcja bazy danych, udostępnia tylko niezbędne renderingowi dane;
+\item registry - rejestr wewnętrznych i zewnętrznych usług takich jak podmiana tagów, personalizacja treści;
+\item ACN - dotychczasowa aplikacja implementująca niektóre usługi, w końcowym etapie ma zniknąć;
+\end{itemize}
 
 \begin{figure}\label{architektura}
 	\centering
@@ -140,93 +183,131 @@ Taka struktura powoduje skomplikowanie kodu, utrudnia wprowadzanie zmian a w prz
 	\caption{Schemat wydzielonych aplikacji}
 \end{figure}
 
-\section{Nowa architektura}
-Rozwiązanie zaproponowane przez firmę i wdrażane przez nas to rozdzielenie czynności wykonywanych w ACN na kilka mikroserwisów RESTowych.
-Jak widać na rysunku \ref{architektura} wydzielone zostały następujące aplikacje:
-\begin{itemize}
-\item Frontend - przyjmowanie zapytań i serwowanie stron WWW
-\item Rendering - tworzenie stron na podstawie szablonów, wykorzystuje usługi udostępniane przez registry
-\item AcDataAPI - abstrakcja bazy danych, udostępnia tylko niezbędne renderingowi dane
-\item Registry - rejestr usług tj. podmiana tagów, personalizacja treści itp.
-\item ACN - dotychczasowa aplikacja implementująca niektóre usługi, w końcowym etapie ma zniknąć
-\end{itemize}
-W tej pracy opisujemy naszą pracę nad renderingiem i dataAPI.
+Nasza grupa zajmowała się elementami Data API oraz serwisem renderującym. W przypadku tego drugiego, część pracy stanowiło wprowadzenie zmian w samym ACN, związanych z dostosowywaniem narzędzia do nowej koncepcji schematu renderowania.
 
 
-\chapter{Implementacja elementu integrującego z bazą danych}
+\chapter{AC Data API}
 
+\section{Mikroserwis}
+
+Obsługa serwisów internetowych wymaga niezawodnego i bezpiecznego sposobu łączenia z bazą danych, stąd pojawia się potrzeba wydzielenia odpowiednigo mikroserwisu odpowiedzialnego za to zadanie. E-point korzysta z tradycyjnych relacyjnych baz danych, co pociąga za sobą stosowanie ORM przy wyciąganiu danych do dalszego przetwarzania.
+
+\vspace{1mm}
+
+Aplikacja Data API ma udostępniać dane z bazy danych ACN dla komponentów w nowej architekturze. Będzie to jeden z najczęściej odpytywanych serwisów, w związku z czym jego wydajność oraz dostępność jest krytyczna dla sprawnego i poprawnego działania całej usługi.
+
+\section{Założenia}
+
+Aplikacja docelowo ma specyfikować oraz implementować kontrakt obslugi REST’owych endpointów, których nazwy składają się z wersji API oraz tytułu zapytania (np. /v1/language-version). Odpowiedzią na dane żądanie jest JSON zawierający odpowiednie dane z bazy.
+
+\vspace{1mm}
+
+Dane z bazy danych mają być zapisywane w odpowiednio inwalidowanym cache’u. Powodem inwalidacji może być upływ wyznaczonego czasu od zapisu czy powiadomienie o zmianie z innego serwisu połączonego z bazą danych (na ten moment funkcję tę pełni ACN).
+
+\vspace{1mm}
+	
+API ma być dokładnie pokryte testami, zarówno poprawnościowymi, jak i wydajnościowymi. W pierwszej wersji nie jest wymagana żadna forma uwierzytelniania.
+
+\section{Struktura bazy}
+
+Baza danych składa się z wielu schematów. Głównym schematem jest schemat ‘master’. Przechowuje on informacje o klientach – organizacjach – korzystających z systemu firmy E-point. Dla każdego klienta tworzony jest schemat indentyfikowany jego kodem, zawierający np. informacje o użytkownikach zarejestrowanych w serwisach tegoż klienta. Dla każdego portalu zarządzanego przez organizację tworzony jest osobny schemat, w którym przechowywane są wszystkie dane dotyczące instancji portalu.
+
+\pagebreak
 
 \section{Użyte technologie}
-\begin{enumerate}
-\item JAVA w wersji 8
-\item Spring - framework do tworzenia aplikacji Javowych
-\item Jooq(Java Object Oriented Querying) - lekka biblioteka do mapowania baz danych.
-	Posiadającą funkcję generowania klas Javy na podstawie bazy danych
-\item Redis - wykorzystany do cachowania wyników zapytań
-\item Elastic Stack - Logstash, Metricbeat, ElasticSearch i Kibana użyte do monitorowania aplikacji
-\item Gatling - framework do tworzenia i wykonywania scenariuszy testów wdajnościowych
-\item Docker - uruchamianie aplikacji w kontenerze
-\end{enumerate}
 
+Aplikacja została napisana w Javie w wersji 8 przy użyciu platformy Spring. Ostatecznie przy jej tworzeniu korzystaliśmy m.in. z:
+\begin{itemize}
+\item systemu automatycznego budowania Gradle;
+\item pakietu Jooq (Java Object Oriented Querying), lekkiej biblioteki stworzonej pod ORM;
+\item biblioteki Caffeine, służącej do cache’owania;
+\item produktu Logstash i powiązanych z nim narzędzi takich jak Elasticsearch czy Kibana, służących do monitorowania działania aplikacji;
+\item platformy Docker z postgresem do testowego deploymentu aplikacji;
+\item frameworku Gatling, stosowanego przy tworzeniu i wykonywaniu scenariuszy testów wydajnościowych;
+\item funkcjonalności związanych z IntelliJ IDEA.
+\end{itemize}
 
-\section{Założenia aplikacji}
-\begin{enumerate}
-\item Aplikacja ma specyfikować oraz implementować kontrakt będący endpointami RESTowymi.
-	Odpowiedzią na dane zapytanie jest JSON zawierający dane z bazy danych.
-	Nazwy endpointów składają się z wersji API oraz nazwy.
-	Np. \emph{/v1/language-version} 
-\item Odpowiedzi na zapytania mają być cachowane. Inwalidacja ??TODO
-\item Częścią projektu jest napisanie testów poprawnościowych i wydajnościowych.
-\end{enumerate}
+\chapter{Praca nad AC Data API}
 
+\section{Iteracja nr 1}
 
-\section{Iteracja 1}
-Wstępnie zrealizowany przykład oparcia rozwiązania w sposób bardzo
-bezpośrednio o pakiet Jooq został odrzucony po zaprezentowaniu
-przykładowej implementacji ze względu na ujawnione braki w
-architekturze rozwiązania.
-Ujawniła się konieczność zapewnienia ścisłego kontraktu 
-poprzez API, mimo zmian schematu bazy danych z której
-pobierane są dane.
+W pierwszej iteracji do generowania klas Javy na podstawie schematów z bazy danych użyliśmy pakietu Jooq. Zaprezentowany przez nas przykład rozwiązania oparty bardzo bezpośrednio na Jooqu został odrzucony przez naszych przełożonych ze względu na ujawnione braki w architekturze rozwiązania. Problematyczne okazało się m.in. zapewnienie ścisłego, sztywnego kontraktu przez API przy zmianach schematów w bazie danych.
 
-Zwłaszcza nad tą fazą projektu trwała najdłuższa dyskusja oraz analiza
-dostępnych narzędzi. Po rozpatrzeniu możliwości zaprezentowanych
-kawałkami kodu, osoba odpowiedzialna za projekt z e-pointu
-zdecydowała się właśnie na pakiet Jooq w połączeniu
-z generacją klas na podstawie aktualnego stanu bazy danych, wydzielając
-jednak warstwę zależną od Jooq od reszty kodu, który nie zależy od sposobu
-dostępu do bazy danych.
+\vspace{1mm}
 
-Do monitorowania aktywnych instancji aplikacji użyliśmy gotowego, dedykowanego narzędzia 
-spring-boot-admin. Niestety okazało się że konfiguracja jest równie łatwa co ograniczona i 
-nie spełnia wymogów postawionych przez klienta.
+Ujawnione wady wcześniejszej koncepcji spowodowały przestój w pracach związany z dyskusją nad możliwościami rozwiązania wykrytych problemów. Po dogłębnej analizie dostępnych narzędzi i prezentowanych przez nas demonstracyjnych kawałków kodu nasz przełożony zdecydował się na pozostaniu przy pakiecie Jooq, z tą różnicą, że warstwa aplikacji zależna od Jooq miała zostać wydzielona od pozostałej części kodu, niezależnej od sposobu dostępu do bazy danych.
 
+\vspace{1mm}
 
-\section{Iteracja 2}
-Do realizacji zatem przyjęliśmy architekturę z kilkoma
-warstwami pośredniczącymi, każda wykonuje oddzielne zadania.
-I tak zaczynając od warstwy najbliżej bazy danych:
+W tej wersji do monitorowania aktywnych instancji aplikacji użyliśmy gotowego, dedykowanego narzędzia spring-boot-admin. Niestety, konfiguracja narzędzia okazała się tyleż prosta, co ograniczona. Nie mogąc spełnić wymogów firmy przy jego pomocy, zdecydowaliśmy się na inny produkt do monitorowania aplikacji.
+	
+\section{Iteracja nr 2}
 
-\begin{enumerate}
-\item Umożliwia dostęp do bazy poprzez Jooqa
-\item Zajmuje się sprawą podzielenia danych klientów na schematy w bazie danych
-	(zarządzanie aktualnym schematem)
-\item Ukrywa Jooq poprzez obiekty domenowe
-\item Umożliwia zapewnienie kontraktu kompatybilnego wstecz pomimo zmian schematu bazy danych
-\end{enumerate}
+Ta iteracja poświęcona była przede wszystkim na poprawne zaimplementowanie ORM oraz stworzenie potrzebnych endpointów. Przyjęliśmy architekturę podzieloną na kilka warstw odpowiedzialnych za wydzielone zadania. 
 
-Ostatni punkt zapewniony jest przez wersjonowanie API pakietami java, z
-wydzielonym wspólnym kodem - czyli zdecydowaną większością.
+\vspace{1mm}
 
-Konfiguracja cache sprowadzała się dodania kilku adnotacji w kodzie oraz konfiguracji Redisa.
+Najniższa z nich zapewnia bezpośredni dostęp do bazy danych poprzez Jooq. Druga warstwa zajmuje się dzieleniem danych klientów na schematy w bazie, zarządzaniem aktualnymi schematami. Następny poziom ukrywa działanie Jooq’a poprzez utworzenie obiektów domenowych. Ostatecznie wersjonowanie API poprzez javowe pakietowanie umożliwia zapewnienie kontraktu kompatybilnego wstecz nawet pomimo zmian schematu bazy daych.
 
-Tym razem do monitorowania instancji aplikacji skorzystaliśmy z Elastic Stacka, który co prawda wymaga 
-ręcznego wprowadzenia zasad dla wymaganych statystyk, ale w zamian daje możliwość niemalże dowolnej ich
-konfiguracji.
+\vspace{1mm}
 
-Kolejnym wymaganiem klienta było przeprowadzenie testów wydajnościowych 
-zaproponowanego rozwiązania. W tym celu napisaliśmy scenariusze korzystając 
-z frameworku Gatling napisanego w Scali. 
+Odpowiednie endpointy realizują zapytania potrzebne wyższym poziomom obsługi żądań do stron. Listę koniecznych na ten moment zapytań przygotowali nasi przełożeni. Wśród zaimplentowanych endpointów znajdują się m.in. zapytania pobierające wersje językowe, informacje o kliencie o zadanym identyfikatorze czy własności strony o zadanym id. Wszystkie te metody są obłożone testami poprawnościowymi w JUnit.
+
+\section{Iteracja nr 3}
+
+Mając zaimplementowaną strukturę aplikacji, przystąpiliśmy do zadań związanych z jej wydajnością. Pierwszym krokiem była konfiguracja cache’u. Na podstawie analizy dostępnych w internecie źródeł i benchmarków zdecydowaliśmy się na Caffeine, bardzo wydajną bibliotekę do cache’owania oparta na Javie 8.
+
+\vspace{1mm}
+
+Spring dobrze współdziała z różnymi frameworkami i Caffeine nie jest tu wyjątkiem. Wybór elementów do cache’owania odbywa się poprzez dodanie odpowiednich adnotacji przy cache’owanych funkcjach – model zmian w kodzie przy pomocy adnotacji to zresztą powszechny w Springu mechanizm.
+
+\vspace{1mm}
+
+Gotowy cache poddaliśmy testom wydajnościowym generowanym przy pomocy scenariuszy korzystających z Gatlinga.
+
+\vspace{1mm}
+
+Działanie całej aplikacji możemy monitorować, korzystając z Elastic Stacka. Wymaga on wprawdzie ręcznego wprowadzania reguł dla oczekiwanych statystyk i nie radzi sobie najlepiej z agregowanymi danymi, zapewnia za to pełną konfigurowalność. Narzędzia związane z Elastic Stackiem takie jak Kibana pozwalają nam na graficzną reprezentację zebranych statystyk, poniżej przykładowe wynikowe wykresy.
+
+	[Wykresy z Kibany]
+
+\chapter{Rendering}
+
+\section{Spotkanie}
+
+Po oddaniu ostatnich elementów Data API i przejściu przez etap recenzji odbyliśmy spotkanie w firmie dotyczące kontynuacji naszej współpracy. Przedstawiona została na nim wizja dalszego podziału ACN i wydzielenia z niego elementu renderującego.
+
+\section{Dotychczasowy rendering}
+
+W poprzedniej wersji renderowanie miało formę dwuetapową. W jednym z etapów renderowane były komponenty z ustawionym w bazie danych parametrem ‘noncacheable attributes’. Elementy te miały swoje wersje w cache’u zależne od parametru żądania (zazwyczaj) czy też ciasteczka pochodzącego z sesji. Całość renderowania wykonywania była przez ACN, co ograniczało wydajność systemu.
+
+\vspace{1mm}
+
+W rozwiązaniu wdrażanym przez firmę opisany wyżej postprocessing ma docelowo zniknąć. Naszym zadaniem było takie przystosowanie ACN, które pozwoliłoby na pozostawienie części renderingu przeglądarce użytkownika. Elementem tej pracy było zastąpienie wspomnianego wcześniej podejścia przez coś lepszego.
+
+	[co lepszego? Na razie nie wiadomo]
+	
+\vspace{1mm}	
+	
+Dopiero po wykonaniu powyższego zadania mogliśmy przystąpić do pisania nowego komponentu renderującego.
+
+\section{Iteracja nr 1}
+	
+Pierwszym etapem naszej pracy była konfiguracja środowiska potrzebnego do testowania wprowadzanych przez nas zmian. Ostatecznie postanowiliśmy trzymać całe środowisko na maszynie wirtualnej. Do obsługi serwera używany jest Apache oraz JBoss. Dla usprawnienia pracy korzystamy także z JRebela, narzędzia pozwalającego na aktualizowanie kodu i obserowanie zmian bez restartowania serwera.
+
+\vspace{1mm}
+
+W tym czasie nasi przełożeni przygotowywali zmiany w komponentach powiązanych z ACN, takich jak OneWeb, by umożliwić nam pracę nad serwisem renderującym. Jedną z istotnych zmian było umożliwienie cache’owania formularzy. Nauka OneWeba była kolejną rzeczą, która zajmowała nas w tej części.
+	
+\section{Iteracja nr 2}
+
+W tej iteracji naszym zadaniem było wyczyszczenie ACN z elementów uznanych przez naszych przełożonych za zbędne – bardzo rzadko używanych i stosunkowo łatwo podmienialnych lub niecache’owalnych. Wyspecyfikowanych zostało kilkadziesiąt niedużych komponentów wymagających poprawek.
+
+[ fragment kodu z opisem ? ]
+
+[ co kto robił ? ]
+
+[ bibliografia ? ]
 
 
 
